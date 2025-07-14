@@ -1,0 +1,12 @@
+/**
+ * Text Message Node Template
+ * Use this in a "Text Message" node AFTER the response preparation node
+ */
+
+{{workflow.responseText}}
+
+/* 
+Alternative: If you want to add fallback text in case responseText is empty:
+
+{{workflow.responseText || "Hello! I'm your AI concierge. How can I help you today?"}}
+*/ 

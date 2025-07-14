@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+:root {
+  /* Base colors */
+  --background: hsla(206, 84%, 29%, 1);
+  --background-end: hsla(248, 9%, 83%, 1);
+  --foreground: #ffffff;
+  
+  /* Gradient colors */
+  --navy-start: hsla(206, 84%, 29%, 1);
+  --navy-end: hsla(248, 9%, 83%, 1);
+  --purple-start: hsla(279, 34%, 43%, 1);
+  --purple-end: hsla(248, 79%, 22%, 1);
+  --orange-start: hsla(30, 14%, 78%, 1);
+  --orange-end: hsla(34, 98%, 44%, 1);
+  
+  /* Additional UI colors */
+  --card-bg: rgba(255, 255, 255, 0.1);
+  --sidebar-bg: hsla(279, 34%, 43%, 0.95);
+  --text-muted: rgba(255, 255, 255, 0.7);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --hover-bg: rgba(255, 255, 255, 0.15);
+  
+  /* Button colors */
+  --btn-primary-bg: hsla(34, 98%, 44%, 1);
+  --btn-primary-hover: hsla(34, 98%, 50%, 1);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: linear-gradient(90deg, var(--navy-start) 0%, var(--navy-end) 100%);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}

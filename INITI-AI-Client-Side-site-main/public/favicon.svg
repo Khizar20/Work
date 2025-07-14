@@ -1,0 +1,24 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" fill="url(#faviconGradient)" rx="4"/>
+  <defs>
+    <linearGradient id="faviconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Hotel building -->
+  <rect x="8" y="10" width="16" height="12" fill="white" rx="1"/>
+  <rect x="10" y="12" width="2" height="2" fill="rgba(102,126,234,0.7)"/>
+  <rect x="13" y="12" width="2" height="2" fill="rgba(102,126,234,0.7)"/>
+  <rect x="16" y="12" width="2" height="2" fill="rgba(102,126,234,0.7)"/>
+  <rect x="19" y="12" width="2" height="2" fill="rgba(102,126,234,0.7)"/>
+  
+  <rect x="10" y="15" width="2" height="2" fill="rgba(102,126,234,0.7)"/>
+  <rect x="13" y="15" width="2" height="2" fill="rgba(102,126,234,0.7)"/>
+  <rect x="16" y="15" width="2" height="2" fill="rgba(102,126,234,0.7)"/>
+  <rect x="19" y="15" width="2" height="2" fill="rgba(102,126,234,0.7)"/>
+  
+  <!-- Entrance -->
+  <rect x="14" y="18" width="4" height="4" fill="white"/>
+</svg>
