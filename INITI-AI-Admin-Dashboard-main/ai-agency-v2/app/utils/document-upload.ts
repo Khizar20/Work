@@ -286,7 +286,7 @@ async function extractTextFromFile(file: File, fileExt: string) {
 
 // Send extracted text to Groq LLM to get structured menu items
 async function sendTextToGroqLLM(text: string) {
-  const apiKey = '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';
+  const apiKey = process.env.GROQ_API_KEY;
   const prompt = `Extract all menu items from the following text and return them as a JSON array. Each item should have: name (string), price (number), available (bool, default true), and description (string if available).\nText:\n${text}`;
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
