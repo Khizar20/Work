@@ -99,11 +99,16 @@ export default function DocumentsLibrary() {
               className="pl-8"
             />
           </div>
-          
-          <Button onClick={() => window.location.href = '/upload-center'}>
-            <FileUp className="h-4 w-4 mr-2" />
-            Upload Document
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => window.location.href = '/upload-center'}>
+              <FileUp className="h-4 w-4 mr-2" />
+              Upload Document
+            </Button>
+            <Button variant="secondary" onClick={() => window.location.href = '/upload-center?type=menu'}>
+              <FileUp className="h-4 w-4 mr-2" />
+              Upload Menu
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (

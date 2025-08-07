@@ -8,6 +8,9 @@ import { pipeline } from '@xenova/transformers';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import Tesseract from 'tesseract.js';
+import mammoth from 'mammoth';
+import fetch from 'node-fetch';
 
 export type FileUploadMetadata = {
   hotel_id: string;
@@ -101,6 +104,26 @@ export const uploadDocument = async (
     }
     // === END NEW ===
 
+    // After upload, if metadata.menuUpload is true, extract text and process menu
+    if (metadata.menuUpload) {
+      try {
+        const text = await extractTextFromFile(file, fileExt);
+        if (text && text.length > 20) {
+          const menuItems = await sendTextToGroqLLM(text);
+          if (Array.isArray(menuItems) && menuItems.length > 0) {
+            await insertMenuItemsToSupabase(menuItems, metadata.hotel_id, client);
+            console.log('✅ Menu items inserted to room_service_items');
+          } else {
+            console.warn('⚠️ No menu items found by LLM');
+          }
+        } else {
+          console.warn('⚠️ No text extracted from menu file');
+        }
+      } catch (err) {
+        console.error('❌ Error processing menu upload:', err);
+      }
+    }
+
     return { 
       success: true, 
       documentId: documentId 
@@ -181,12 +204,13 @@ async function processPDFEmbedding(client: SupabaseClient<Database>, documentId:
       
       console.log('✅ Embedding generated, dimensions:', embedding.length);
       
-      // 5. Store embedding in database
-      console.log('💾 Storing embedding in database...');
+      // 5. Store embedding and content in database
+      console.log('💾 Storing embedding and content in database...');
       const { error: updateError } = await client
         .from('documents')
         .update({ 
           embedding: embedding,
+          content: text, // Store the extracted text content
           processed: true 
         })
         .eq('id', documentId);
@@ -220,5 +244,91 @@ async function processPDFEmbedding(client: SupabaseClient<Database>, documentId:
     } catch (updateError) {
       console.error('❌ Failed to mark document as processed:', updateError);
     }
+  }
+}
+
+// Extract text from file (image, pdf, docx)
+async function extractTextFromFile(file: File, fileExt: string) {
+  if (['jpg', 'jpeg', 'png', 'webp'].includes(fileExt)) {
+    // OCR for images
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const { data: { text } } = await Tesseract.recognize(buffer, 'eng');
+    return text;
+  } else if (fileExt === 'pdf') {
+    // Use PDFParser (already in use)
+    return await new Promise<string>((resolve, reject) => {
+      const pdfParser = new PDFParser();
+      const tempFilePath = path.join(os.tmpdir(), `menu-upload-${Date.now()}.pdf`);
+      file.arrayBuffer().then(arrayBuffer => {
+        fs.writeFileSync(tempFilePath, Buffer.from(arrayBuffer));
+        pdfParser.on('pdfParser_dataError', (errData: any) => reject(errData.parserError));
+        pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
+          try {
+            const textContent = pdfData.Pages?.map((page: any) =>
+              page.Texts?.map((text: any) => decodeURIComponent(text.R?.[0]?.T || '')).join(' ')
+            ).join(' ') || '';
+            fs.unlinkSync(tempFilePath);
+            resolve(textContent);
+          } catch (e: any) { reject(e); }
+        });
+        pdfParser.loadPDF(tempFilePath);
+      });
+    });
+  } else if (fileExt === 'docx') {
+    // Use mammoth for DOCX
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ buffer: Buffer.from(arrayBuffer) });
+    return result.value;
+  }
+  return '';
+}
+
+// Send extracted text to Groq LLM to get structured menu items
+async function sendTextToGroqLLM(text: string) {
+  const apiKey = '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';
+  const prompt = `Extract all menu items from the following text and return them as a JSON array. Each item should have: name (string), price (number), available (bool, default true), and description (string if available).\nText:\n${text}`;
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'llama3-70b-8192',
+      messages: [
+        { role: 'system', content: 'You are a helpful assistant that extracts menu items from text and returns a JSON array.' },
+        { role: 'user', content: prompt }
+      ],
+      max_tokens: 2048,
+      temperature: 0.2
+    })
+  });
+  const data = await response.json();
+  // Try to parse JSON from the LLM response
+  let menuItems: any[] = [];
+  try {
+    const match = data.choices[0].message.content.match(/\[.*\]/s);
+    if (match) {
+      menuItems = JSON.parse(match[0]);
+    }
+  } catch (e) {
+    // fallback: try to parse whole content
+    try { menuItems = JSON.parse(data.choices[0].message.content); } catch {}
+  }
+  return menuItems;
+}
+
+// Insert menu items into Supabase
+async function insertMenuItemsToSupabase(menuItems: any[], hotelId: string, supabaseClient: SupabaseClient<Database>) {
+  for (const item of menuItems) {
+    if (!item.name || !item.price) continue;
+    await supabaseClient.from('room_service_items').insert({
+      hotel_id: hotelId,
+      name: item.name,
+      price: item.price,
+      available: item.available !== false,
+      description: item.description || null
+    });
   }
 }

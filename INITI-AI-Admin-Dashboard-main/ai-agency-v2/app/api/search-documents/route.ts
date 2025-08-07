@@ -13,7 +13,8 @@ export async function POST(request: Request) {
       limit = 5, 
       document_id = null, 
       document_ids = null,
-      match_threshold = 0.1 
+      match_threshold = 0.1,
+      use_chunks = true // Default to chunk-based search for better semantic results
     } = await request.json();
     
     if (!query || !hotel_id) {
@@ -29,6 +30,7 @@ export async function POST(request: Request) {
     console.log('🎯 Document IDs:', document_ids);
     console.log('📊 Match threshold:', match_threshold);
     console.log('📊 Limit:', limit);
+    console.log('🧩 Use chunks:', use_chunks);
     
     // 1. Generate embedding for the search query
     console.log('🧠 Generating query embedding...');
@@ -42,43 +44,53 @@ export async function POST(request: Request) {
     // 2. Create Supabase client
     const supabase = await createClient();
     
-    // 3. Perform vector similarity search with appropriate function
+    // 3. Perform vector similarity search with chunk-based approach
     console.log('🔎 Performing vector similarity search...');
     
     let documents, error;
     
-    if (document_ids && Array.isArray(document_ids)) {
-      // Search within multiple specific document IDs
-      console.log('🔍 Searching within multiple specific documents');
-      const searchParams = {
+    // Try chunk-based search first if enabled (better semantic matching)
+    if (use_chunks) {
+      console.log('🧩 Trying chunk-based search first...');
+      const chunkSearchParams = {
         query_embedding: queryEmbedding,
         target_hotel_id: hotel_id,
-        target_document_ids: document_ids,
         match_threshold: match_threshold,
         match_count: limit
       };
-      console.log('📋 Search params (multi-document):', JSON.stringify({
-        ...searchParams,
-        query_embedding: `[${queryEmbedding.length} values]`
-      }));
       
-      ({ data: documents, error } = await supabase.rpc('search_documents_by_ids', searchParams));
-    } else {
-      // Search all documents or specific single document
-      console.log(document_id ? '🔍 Searching within specific document' : '🔍 Searching all hotel documents');
-      const searchParams = {
-        query_embedding: queryEmbedding,
-        target_hotel_id: hotel_id,
-        match_threshold: match_threshold,
-        match_count: limit,
-        target_document_id: document_id
-      };
-      console.log('📋 Search params (single/all documents):', JSON.stringify({
-        ...searchParams,
-        query_embedding: `[${queryEmbedding.length} values]`
-      }));
+      ({ data: documents, error } = await supabase.rpc('search_documents_with_chunks' as any, chunkSearchParams));
+    }
+    
+    // If chunk search is disabled, fails, or returns no results, fall back to document search
+    if (!use_chunks || error || !documents || documents.length === 0) {
+      console.log('🔄 Using document-level search...');
       
-      ({ data: documents, error } = await supabase.rpc('search_documents', searchParams));
+      if (document_ids && Array.isArray(document_ids)) {
+        // Search within multiple specific document IDs
+        console.log('🔍 Searching within multiple specific documents');
+        const searchParams = {
+          query_embedding: queryEmbedding,
+          target_hotel_id: hotel_id,
+          target_document_ids: document_ids,
+          match_threshold: match_threshold,
+          match_count: limit
+        };
+        
+        ({ data: documents, error } = await supabase.rpc('search_documents_by_ids' as any, searchParams));
+      } else {
+        // Search all documents or specific single document
+        console.log(document_id ? '🔍 Searching within specific document' : '🔍 Searching all hotel documents');
+        const searchParams = {
+          query_embedding: queryEmbedding,
+          target_hotel_id: hotel_id,
+          match_threshold: match_threshold,
+          match_count: limit,
+          target_document_id: document_id
+        };
+        
+        ({ data: documents, error } = await supabase.rpc('search_documents' as any, searchParams));
+      }
     }
     
     if (error) {
@@ -108,7 +120,10 @@ export async function POST(request: Request) {
       document_ids: document_ids,
       results: documents || [],
       count: documents?.length || 0,
-      search_type: document_ids ? 'multiple_documents' : document_id ? 'single_document' : 'all_documents'
+      search_type: use_chunks && documents && documents.length > 0 && documents[0].chunk_content ? 'rag_chunks' : 
+                   document_ids ? 'multiple_documents' : 
+                   document_id ? 'single_document' : 'all_documents',
+      use_chunks: use_chunks
     });
     
   } catch (error) {

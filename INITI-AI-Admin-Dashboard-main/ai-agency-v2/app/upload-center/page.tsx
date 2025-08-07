@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import DashboardLayout from '../components/DashboardLayout';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface UploadItem {
   id: string;
@@ -23,6 +24,9 @@ export default function UploadCenter() {
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [activeTab, setActiveTab] = useState('all');
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const isMenuUpload = searchParams?.get('type') === 'menu';
   
   // Mock data
   const mockUploads: UploadItem[] = [
@@ -99,10 +103,40 @@ export default function UploadCenter() {
     return true;
   });
 
-  // Handle file upload (mock implementation)
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle file upload (real implementation for menu uploads)
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+
+    if (isMenuUpload) {
+      // Only process the first file for menu upload
+      const file = files[0];
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('title', file.name);
+      formData.append('menuUpload', 'true');
+      // Optionally add description or other fields
+      try {
+        // Show uploading status
+        setUploads([{ id: `menu-${Date.now()}`, name: file.name, size: formatFileSize(file.size), type: getFileType(file.name), progress: 0, status: 'uploading', createdAt: new Date().toISOString() }, ...uploads]);
+        const res = await fetch('/api/upload?type=menu', {
+          method: 'POST',
+          body: formData,
+        });
+        if (res.ok) {
+          setUploads(prev => prev.map(u => u.name === file.name ? { ...u, progress: 100, status: 'complete' } : u));
+          // Optionally show a toast or feedback
+          alert('Menu uploaded and processed!');
+        } else {
+          setUploads(prev => prev.map(u => u.name === file.name ? { ...u, progress: 100, status: 'error' } : u));
+          alert('Menu upload failed.');
+        }
+      } catch (err) {
+        setUploads(prev => prev.map(u => u.name === file.name ? { ...u, progress: 100, status: 'error' } : u));
+        alert('Menu upload failed.');
+      }
+      return;
+    }
 
     // Create new upload items
     const newUploads = Array.from(files).map((file, index) => ({

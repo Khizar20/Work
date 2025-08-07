@@ -60,6 +60,13 @@ export async function POST(request: Request) {
     const file = formData.get('file') as File;
     const title = formData.get('title') as string;
     const description = formData.get('description') as string | undefined;
+    // Detect menu upload from query param or form field
+    let menuUpload = false;
+    try {
+      const url = new URL(request.url);
+      if (url.searchParams.get('type') === 'menu') menuUpload = true;
+    } catch {}
+    if (formData.get('menuUpload') === 'true') menuUpload = true;
     
     if (!file || !title) {
       return NextResponse.json(
@@ -83,7 +90,8 @@ export async function POST(request: Request) {
       uploaded_by: hotelAdmin.id,
       title,
       file_type: file.type,
-      description
+      description,
+      menuUpload // pass flag for menu extraction
     }, supabase); // Pass the server-side client
     
     if (!result.success) {

@@ -20,6 +20,7 @@ const navigationItems = [
   { name: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard size={18} /> },
   { name: 'Chat Analytics', href: '/chatbot-metrics', icon: <MessageCircle size={18} /> },
   { name: 'Documents', href: '/documents-library', icon: <FileText size={18} /> },
+  { name: 'Guest Management', href: '/guest-management', icon: <Users size={18} /> },
   { name: 'Room Management', href: '/hotel-management', icon: <Hotel size={18} /> },
   { name: 'Team', href: '/staff', icon: <Users size={18} /> },
   { name: 'My Profile', href: '/profile', icon: <UserCircle size={18} /> },
